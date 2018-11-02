@@ -1,0 +1,2 @@
+rootProject.name = 'marytts-hts-engine'
+enableFeaturePreview('STABLE_PUBLISHING')

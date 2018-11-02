@@ -1,0 +1,64 @@
+/*******************************************************************************************
+ ** Dependencies and meta setup
+ *******************************************************************************************/
+
+apply plugin: 'java'
+apply plugin: 'java-library'
+apply plugin: 'maven-publish'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    jcenter()
+    mavenLocal()
+    maven {
+        url 'https://oss.jfrog.org/artifactory/oss-release-local'
+    }
+}
+
+dependencies {
+    compile group: 'de.dfki.mary', name: 'jhts-engine', version: '0.1-SNAPSHOT'
+    compile group: 'de.dfki.mary', name: 'marytts-common', version: '6.0.1-ALPHA2'
+    testCompile group: 'org.testng', name: 'testng', version: '6.8.13'
+}
+
+test {
+    useTestNG()
+}
+
+/**********************************************************************************************
+ ** Project meta + publishing part
+ ***********************************************************************************************/
+version '0.1-SNAPSHOT'
+group "de.dfki.mary"
+description "Artifact containing the hts engine module for MaryTTS"
+
+task sourceJar(type: Jar) {
+    from sourceSets.main.allJava
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourceJar {
+                classifier 'sources'
+            }
+        }
+    }
+    repositories {
+        maven {
+            name 'projectLocal'
+            url "$rootProject.buildDir/repo"
+        }
+
+        maven {
+            url version.endsWith('-SNAPSHOT') ? 'https://oss.jfrog.org/artifactory/oss-snapshot-local' : 'https://oss.jfrog.org/artifactory/oss-release-local'
+            credentials {
+                username = findProperty('bintrayUser')
+                password = findProperty('bintrayApiKey')
+            }
+        }
+    }
+}

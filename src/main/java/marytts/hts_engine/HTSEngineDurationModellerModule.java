@@ -18,7 +18,7 @@ import marytts.data.item.phonology.Phone;
 import marytts.modules.MaryModule;
 
 // Marytts Serializer
-import marytts.io.serializer.DefaultHTSLabelSerializer;
+import marytts.io.serializer.label.DefaultHTSLabelSerializer;
 import marytts.io.serializer.Serializer;
 
 // Java hts engine wrapper classes
@@ -31,9 +31,13 @@ import jhts_engine.FilledLabel;
  */
 public class HTSEngineDurationModellerModule extends MaryModule
 {
+    private String voice_path;
+
+    /** The label serializer */
     private Serializer label_serializer;
 
-    private JHTSEngineWrapper hts_engine_wrapper;
+    /** The HTS engine wrapper */
+    protected JHTSEngineWrapper hts_engine_wrapper;
 
     public HTSEngineDurationModellerModule() throws MaryException {
         super("acoustic");
@@ -55,8 +59,13 @@ public class HTSEngineDurationModellerModule extends MaryModule
         this.label_serializer = label_serializer;
     }
 
+    protected String getVoicePath() {
+        return voice_path;
+    }
+
     public void setVoicePath(String voice_path) throws MaryException {
         try {
+            this.voice_path = voice_path;
             hts_engine_wrapper.setVoice(voice_path);
         } catch (Exception ex) {
             throw new MaryException("Can't define the voice for the duration modeller", ex);
@@ -88,22 +97,8 @@ public class HTSEngineDurationModellerModule extends MaryModule
         try {
             runtime_configuration.applyConfiguration(this);
 
-            // FIXME: externalize serializer
-            String input_features = getLabelSerializer().export(utt).toString();
-            hts_engine_wrapper.generateAcousticParameters(input_features);
-
-            // Update phoneme sequence
-            Sequence<Phoneme> seq_ph = (Sequence<Phoneme>) utt.getSequence(SupportedSequenceType.PHONE);
-            ArrayList<FilledLabel> labels = hts_engine_wrapper.getDurations();
-            if (labels.size() != seq_ph.size()) {
-                throw new MaryException("The number of segments produced by HTS engine doesn't correspond to the given number of segments");
-            }
-
-            for (int i=0; i<labels.size(); i++) {
-                double start = labels.get(i).getStart() / FilledLabel.MS_TO_HTK;
-                double duration = labels.get(i).getDuration() / FilledLabel.MS_TO_HTK;
-                seq_ph.set(i, new Phone(seq_ph.get(i), start, duration));
-            }
+            // Predict the duration
+            utt = durationPrediction(utt);
 
             // Clear unused memory !
             hts_engine_wrapper.refresh();
@@ -113,6 +108,29 @@ public class HTSEngineDurationModellerModule extends MaryModule
             hts_engine_wrapper.refresh();
             throw new MaryException("Couldn't predict the duration", ex);
         }
+    }
+
+    protected Utterance durationPrediction(Utterance utt) throws Exception
+    {
+        // Generate the parameters
+        String input_features = getLabelSerializer().export(utt).toString();
+        hts_engine_wrapper.generateAcousticParameters(input_features);
+
+        // Update phoneme sequence by taking into account durations
+        Sequence<Phoneme> seq_ph = (Sequence<Phoneme>) utt.getSequence(SupportedSequenceType.PHONE);
+        ArrayList<FilledLabel> labels = hts_engine_wrapper.getDurations();
+        if (labels.size() != seq_ph.size()) {
+            throw new MaryException(String.format("The number of segments (%d) produced by HTS engine doesn't correspond to the given number of segments (%d)",
+                                                  labels.size(), seq_ph.size()));
+        }
+
+        for (int i=0; i<labels.size(); i++) {
+            double start = labels.get(i).getStart() / FilledLabel.MS_TO_HTK;
+            double duration = labels.get(i).getDuration() / FilledLabel.MS_TO_HTK;
+            seq_ph.set(i, new Phone(seq_ph.get(i), start, duration));
+        }
+
+        return utt;
     }
 
     protected void setDescription()

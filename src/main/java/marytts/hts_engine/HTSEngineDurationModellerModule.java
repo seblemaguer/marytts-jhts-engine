@@ -14,7 +14,8 @@ import marytts.data.Sequence;
 import marytts.data.SupportedSequenceType;
 import marytts.data.Utterance;
 import marytts.data.item.phonology.Phoneme;
-import marytts.data.item.phonology.Phone;
+import marytts.data.utils.IntegerPair;
+import marytts.data.item.acoustic.Segment;
 import marytts.modules.MaryModule;
 
 // Marytts Serializer
@@ -112,11 +113,11 @@ public class HTSEngineDurationModellerModule extends MaryModule
 
     protected Utterance durationPrediction(Utterance utt) throws Exception
     {
-        // Generate the parameters
+        // Generate the parameters through HTS engine
         String input_features = getLabelSerializer().export(utt).toString();
         hts_engine_wrapper.generateAcousticParameters(input_features);
 
-        // Update phoneme sequence by taking into account durations
+        // Get duration information
         Sequence<Phoneme> seq_ph = (Sequence<Phoneme>) utt.getSequence(SupportedSequenceType.PHONE);
         ArrayList<FilledLabel> labels = hts_engine_wrapper.getDurations();
         if (labels.size() != seq_ph.size()) {
@@ -124,11 +125,25 @@ public class HTSEngineDurationModellerModule extends MaryModule
                                                   labels.size(), seq_ph.size()));
         }
 
+        // Fill sequence
+        Sequence<Segment> seq_segment = new Sequence<Segment>();
         for (int i=0; i<labels.size(); i++) {
             double start = labels.get(i).getStart() / FilledLabel.MS_TO_HTK;
             double duration = labels.get(i).getDuration() / FilledLabel.MS_TO_HTK;
-            seq_ph.set(i, new Phone(seq_ph.get(i), start, duration));
+            Segment cur_seg = new Segment(start, duration);
+            seq_segment.add(cur_seg);
         }
+
+        utt.addSequence(SupportedSequenceType.SEGMENT, seq_segment);
+
+
+        ArrayList<IntegerPair> alignment_phone_seg = new ArrayList<IntegerPair>();
+        for (int i = 0; i < seq_ph.size(); i++) {
+            alignment_phone_seg.add(new IntegerPair(i, i));
+        }
+
+        Relation rel = new Relation(seq_ph, seq_segment, alignment_phone_seg);
+        utt.setRelation(SupportedSequenceType.PHONE, SupportedSequenceType.SEGMENT, rel);
 
         return utt;
     }
@@ -140,6 +155,7 @@ public class HTSEngineDurationModellerModule extends MaryModule
 
 
     public void shutdown() {
+        this.logger.info("Clear wrapper");
         hts_engine_wrapper.clear();
     }
 }

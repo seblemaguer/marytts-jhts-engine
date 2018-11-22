@@ -5,7 +5,6 @@ import java.util.ArrayList;
 
 // Exception
 import marytts.MaryException;
-import marytts.exceptions.MaryConfigurationException;
 
 // Marytts base classes
 import marytts.config.MaryConfiguration;
@@ -14,19 +13,10 @@ import marytts.data.Sequence;
 import marytts.data.SupportedSequenceType;
 import marytts.data.Utterance;
 import marytts.data.utils.IntegerPair;
+import marytts.hts_engine.data.JHTSEngineSupportedSequenceType;
 import marytts.data.item.Item;
-import marytts.data.item.phonology.Phoneme;
-import marytts.data.item.phonology.Phone;
 import marytts.data.item.global.DoubleMatrixItem;
 import marytts.data.item.global.DoubleVectorItem;
-import marytts.modules.MaryModule;
-
-// Marytts Serializer
-import marytts.io.serializer.Serializer;
-
-// Java hts engine wrapper classes
-import jhts_engine.JHTSEngineWrapper;
-import jhts_engine.FilledLabel;
 
 /**
  *
@@ -42,9 +32,9 @@ public class HTSParameterGenerationModule extends HTSEngineDurationModellerModul
 
         // FIXME: hadcoded
         sequence_names = new ArrayList<String>();
-        sequence_names.add("MGC");
-        sequence_names.add("LF0");
-        sequence_names.add("BAP");
+        sequence_names.add(JHTSEngineSupportedSequenceType.MGC);
+        sequence_names.add(JHTSEngineSupportedSequenceType.LF0);
+        sequence_names.add(JHTSEngineSupportedSequenceType.BAP);
     }
 
     @Override
